@@ -11,10 +11,35 @@ SPOTIPY_REDIRECT_URI = 'http://localhost:8000/callback'
 
 WITTY_PI_DEVICE_ADDRESS = 0x08
 
-
+bus = smbus.SMBus(1)
 
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(SPOTIPY_CLIENT_ID, 
                     SPOTIPY_CLIENT_SECRET, SPOTIPY_REDIRECT_URI, scope='user-top-read', open_browser=False, cache_path='/home/pi/spotipy/.cache'))
+
+
+# Function to read the voltage from the I2C device
+def read_voltage():
+    try:
+        # Read the integer part (first register)
+        integer_part = bus.read_byte_data(WITTY_PI_DEVICE_ADDRESS, 0x17)
+
+        # Read the decimal part (second register)
+        decimal_part = bus.read_byte_data(
+            WITTY_PI_DEVICE_ADDRESS, 0x18) / 100.0  # Assuming two decimal places
+
+        # Combine integer and decimal parts to get the voltage
+        voltage = integer_part + decimal_part
+        return voltage
+    except Exception as e:
+        print(f"Error reading voltage: {str(e)}")
+        return None
+
+# Read the voltage from the I2C device
+voltage = read_voltage()
+if voltage is not None:
+    print(f"Voltage: {voltage:.2f} V")
+else:
+    print("Failed to read voltage.")
 
 top_tracks = sp.current_user_top_tracks(time_range='short_term', limit=6)
 
