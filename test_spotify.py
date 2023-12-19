@@ -1,6 +1,6 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-from PIL import Image, ImageStat
+from PIL import Image, ImageStat, ImageEnhance
 import requests
 
 SPOTIPY_CLIENT_ID = 'd3ee96d71f0545909f0529a7e8788bef'
@@ -34,6 +34,15 @@ def resize_image(input_path, base_width=None, base_height=None):
 
     return img
 
+def enhance_image(img, saturation_factor, contrast_factor):
+    # Enhance saturation
+    enhancer = ImageEnhance.Color(img)
+    img = enhancer.enhance(saturation_factor)
+
+    # Enhance contrast
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(contrast_factor)
+
 def is_batt_low():
     return True
 
@@ -65,3 +74,11 @@ if is_batt_low():
     combined_image.paste(battery_image, position, battery_image)
 
 combined_image.show()
+
+enhancer = ImageEnhance.Color(combined_image)
+img = enhancer.enhance(1.5)
+enhance = ImageEnhance.Contrast(img)
+img = enhance.enhance(1.5)
+
+img.show()
+

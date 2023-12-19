@@ -1,6 +1,6 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-from PIL import Image
+from PIL import Image, ImageEnhance
 import requests
 import smbus
 from inky.auto import auto
@@ -27,11 +27,11 @@ def resize_image(input_path, base_width=None, base_height=None):
     if base_width:
         wpercent = (base_width / float(width))
         hsize = int((float(height) * float(wpercent)))
-        img = img.resize((base_width, hsize), Image.Resampling.LANCZOS)
+        img = img.resize((base_width, hsize), Image.LANCZOS)
     elif base_height:
         hpercent = (base_height / float(height))
         wsize = int((float(width) * float(hpercent)))
-        img = img.resize((wsize, base_height), Image.Resampling.LANCZOS)
+        img = img.resize((wsize, base_height), Image.LANCZOS)
     else:
         raise ValueError("Either base_width or base_height must be specified")
 
@@ -41,11 +41,11 @@ def resize_image(input_path, base_width=None, base_height=None):
 def read_voltage():
     try:
         # Read the integer part (first register)
-        integer_part = bus.read_byte_data(WITTY_PI_DEVICE_ADDRESS, 0x17)
+        integer_part = bus.read_byte_data(WITTY_PI_DEVICE_ADDRESS, 1)
 
         # Read the decimal part (second register)
         decimal_part = bus.read_byte_data(
-            WITTY_PI_DEVICE_ADDRESS, 0x18) / 100.0  # Assuming two decimal places
+            WITTY_PI_DEVICE_ADDRESS, 2) / 100.0  # Assuming two decimal places
 
         # Combine integer and decimal parts to get the voltage
         voltage = integer_part + decimal_part
@@ -57,10 +57,15 @@ def read_voltage():
 def is_batt_low():
     return True
 
+bat_low = False
+
 # Read the voltage from the I2C device
 voltage = read_voltage()
 if voltage is not None:
     print(f"Voltage: {voltage:.2f} V")
+    if voltage < 3.6:
+        print("Battery voltage is low.")
+        bat_low = True
 else:
     print("Failed to read voltage.")
 
@@ -87,19 +92,25 @@ for image in images:
 
 combined_image.save('combined_album_art.png')
 
-if is_batt_low():
+enhancer = ImageEnhance.Color(combined_image)
+ink_img = enhancer.enhance(2.0)
+enhance = ImageEnhance.Contrast(ink_img)
+ink_img = enhance.enhance(2.0)
+
+if bat_low:
     # overlay a small battery icon in the top right corner
-    battery_image = resize_image('battery_low_strikethrough_boarder_white.png', base_width=100)
+    battery_image = resize_image('battery_low_strikethrough_boarder_white.png', base_width=80)
 
-    position = (combined_image.width - battery_image.width - 20, 20)
+    position = (ink_img.width - battery_image.width - 20, 20)
 
-    combined_image.paste(battery_image, position, battery_image)
+    ink_img.paste(battery_image, position, battery_image)
 
-# combined_image.show();
+# ink_img.show();
 
 inky = auto(ask_user=True, verbose=True)
 saturation = 1.0
 
-resizedimage = combined_image.resize(inky.resolution).rotate(180)
+resizedimage = ink_img.resize(inky.resolution).rotate(180)
 
 inky.set_image(resizedimage, saturation=saturation)
+inky.show()
